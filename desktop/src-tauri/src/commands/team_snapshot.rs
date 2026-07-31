@@ -567,8 +567,22 @@ pub async fn confirm_team_snapshot_import(
             turn_timeout_seconds: 0,
             idle_timeout_seconds: member.definition.idle_timeout_seconds,
             max_turn_duration_seconds: member.definition.max_turn_duration_seconds,
-            parallelism: minted_parallelism
-                .unwrap_or(crate::managed_agents::DEFAULT_AGENT_PARALLELISM),
+            parallelism: {
+                // Resolve harness command from the definition's runtime id to
+                // apply the per-harness parallelism cap (definition untouched).
+                let instance_command = member
+                    .definition
+                    .runtime
+                    .as_deref()
+                    .and_then(crate::managed_agents::known_acp_runtime_exact)
+                    .and_then(|r| r.commands.first().copied())
+                    .map(str::to_string)
+                    .unwrap_or_else(crate::managed_agents::default_agent_command);
+                crate::managed_agents::effective_parallelism(
+                    &instance_command,
+                    minted_parallelism.unwrap_or(crate::managed_agents::DEFAULT_AGENT_PARALLELISM),
+                )
+            },
             system_prompt: member.definition.system_prompt.clone(),
             model: member.definition.model.clone(),
             provider: member.definition.provider.clone(),

@@ -100,7 +100,13 @@ pub fn agent_event_content(record: &ManagedAgentRecord) -> ManagedAgentEventCont
         } else {
             record.persona_source_version.clone()
         },
-        parallelism: record.parallelism,
+        parallelism: crate::managed_agents::effective_parallelism(
+            // Use the record's authoritative runtime id to resolve the harness
+            // command so boot-reconcile of legacy OpenClaw records publishes 5,
+            // not 10. No personas slice needed — record.runtime is sufficient.
+            &crate::managed_agents::policy_command_for_record(record),
+            record.parallelism,
+        ),
         respond_to: record.respond_to,
         respond_to_allowlist: record.respond_to_allowlist.clone(),
     }
@@ -450,5 +456,62 @@ mod tests {
             .tags
             .iter()
             .all(|t| t.as_slice().first().map(String::as_str) != Some("e")));
+    }
+
+    // ── kind:30177 parallelism cap in wire projection ─────────────────────
+
+    /// Legacy OpenClaw record with parallelism 10: the wire projection must
+    /// emit 5 (capped), not 10. This is the boot-reconcile case — a stale
+    /// record on disk must not broadcast the over-cap value to other devices.
+    #[test]
+    fn wire_projection_caps_openclaw_parallelism() {
+        let mut agent = sample_agent();
+        agent.persona_id = None; // definition-less so parallelism is always emitted
+        agent.runtime = Some("openclaw".to_string());
+        agent.agent_command = "openclaw".to_string();
+        agent.parallelism = 10;
+
+        let content = agent_event_content(&agent);
+        assert_eq!(
+            content.parallelism,
+            crate::managed_agents::OPENCLAW_MAX_PARALLELISM,
+            "wire projection must cap OpenClaw parallelism to {}, got {}",
+            crate::managed_agents::OPENCLAW_MAX_PARALLELISM,
+            content.parallelism
+        );
+    }
+
+    /// Non-OpenClaw record: wire projection must pass through raw parallelism
+    /// unchanged (the cap is the identity function for uncapped harnesses).
+    #[test]
+    fn wire_projection_passes_through_non_openclaw_parallelism() {
+        let mut agent = sample_agent();
+        agent.runtime = Some("goose".to_string());
+        agent.agent_command = "goose".to_string();
+        agent.parallelism = 24;
+
+        let content = agent_event_content(&agent);
+        assert_eq!(
+            content.parallelism, 24,
+            "non-OpenClaw parallelism must not be capped"
+        );
+    }
+
+    /// OpenClaw record with parallelism already at or below the cap: must be
+    /// emitted as-is (the cap is a min, not a clamp-to-exactly-5).
+    #[test]
+    fn wire_projection_honors_openclaw_parallelism_at_or_below_cap() {
+        let mut agent = sample_agent();
+        agent.runtime = Some("openclaw".to_string());
+        agent.agent_command = "openclaw".to_string();
+
+        for p in [1u32, 3, 5] {
+            agent.parallelism = p;
+            let content = agent_event_content(&agent);
+            assert_eq!(
+                content.parallelism, p,
+                "OpenClaw parallelism {p} (at or below cap) must not be changed"
+            );
+        }
     }
 }

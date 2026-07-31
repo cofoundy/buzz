@@ -499,8 +499,22 @@ pub async fn confirm_agent_snapshot_import(
             turn_timeout_seconds: 0,
             idle_timeout_seconds: snapshot.definition.idle_timeout_seconds,
             max_turn_duration_seconds: snapshot.definition.max_turn_duration_seconds,
-            parallelism: minted_parallelism
-                .unwrap_or(crate::managed_agents::DEFAULT_AGENT_PARALLELISM),
+            parallelism: {
+                // Resolve harness command from the snapshot's runtime id to
+                // apply the per-harness parallelism cap (definition untouched).
+                let instance_command = snapshot
+                    .definition
+                    .runtime
+                    .as_deref()
+                    .and_then(crate::managed_agents::known_acp_runtime_exact)
+                    .and_then(|r| r.commands.first().copied())
+                    .map(str::to_string)
+                    .unwrap_or_else(crate::managed_agents::default_agent_command);
+                crate::managed_agents::effective_parallelism(
+                    &instance_command,
+                    minted_parallelism.unwrap_or(crate::managed_agents::DEFAULT_AGENT_PARALLELISM),
+                )
+            },
             system_prompt: snapshot.definition.system_prompt.clone(),
             model: snapshot.definition.model.clone(),
             provider: snapshot.definition.provider.clone(),
