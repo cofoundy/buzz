@@ -810,3 +810,161 @@ test("the usage section renders below the agents and teams sections", async ({
   expect(usageTop as number).toBeGreaterThan(personasTop as number);
   expect(usageTop as number).toBeGreaterThan(teamsTop as number);
 });
+
+// ── Branch-coverage tests (restored compact form after trim, per Thufir pass-1) ─
+
+test("Partial badge renders in the row, bar, and ingress when total is an incomplete lower bound", async ({
+  page,
+}) => {
+  await installMockBridge(page);
+  await openAgentsView(page);
+
+  const agentPubkey = await addGenericAgent(page, "general", "Partial Bot");
+  // null total + incomplete input → approx-partial display: row shows Partial
+  // badge, bar shows ≈N* (approx-partial trailing), ingress trailing says "Partial".
+  const partialBucket = {
+    start: BASE,
+    end: BASE + DAY,
+    hasUnknownUsage: false,
+    reportCount: 1,
+    usage: {
+      estimatedCostUsd: costField(null),
+      inputTokens: usageField("800", true), // incomplete
+      outputTokens: usageField("200", false),
+      totalTokens: usageField(null),
+    },
+  };
+  await seedSeries(
+    page,
+    mockUsageSeries({
+      agents: [
+        mockAgentUsage(agentPubkey, {
+          buckets: [partialBucket],
+          usage: {
+            estimatedCostUsd: costField(null),
+            inputTokens: usageField("800", true), // incomplete
+            outputTokens: usageField("200", false),
+            totalTokens: usageField(null),
+          },
+        }),
+      ],
+      buckets: [partialBucket],
+    }),
+  );
+
+  const row = page.getByTestId(`agent-usage-row-${agentPubkey}`);
+  await expect(row).toBeVisible();
+  // Row: Partial badge present (dt.partial = true because inputTokens.incomplete).
+  await expect(row.getByText("Partial", { exact: true })).toBeVisible();
+
+  // Bar: approx-partial bucket renders ≈N* (the trailing * is the partial signal).
+  const dailyBars = page.getByTestId("agent-usage-daily-bars");
+  await expect(dailyBars).toBeVisible();
+  await expect(dailyBars).toContainText("≈1K*");
+
+  // Ingress: navigate to the Info tab and verify the trailing shows "Partial".
+  await row.click();
+  await expect(page.getByTestId("user-profile-panel")).toBeVisible();
+  await page.getByTestId("user-profile-panel-back").click();
+  await expect(page.getByTestId("user-profile-tab-info")).toBeVisible();
+  const ingressRow = page.getByTestId(`user-profile-view-usage-${agentPubkey}`);
+  await expect(ingressRow).toBeVisible();
+  await expect(ingressRow).toContainText("Partial");
+});
+
+test("focused view renders the unknown-intervals and invalid-reports caveats under their independent gate conditions", async ({
+  page,
+}) => {
+  await installMockBridge(page);
+  await openAgentsView(page);
+
+  const agentPubkey = await addGenericAgent(page, "general", "Coverage Bot");
+  // Gate 1 (showUnknownIntervalsCaveat): inputTokens.incomplete = true.
+  // Gate 2 (showInvalidReportsCaveat): coverage.invalidReportCount > 0.
+  // Both conditions must be independently asserted; neither must fire the other.
+  await seedSeries(
+    page,
+    mockUsageSeries({
+      agents: [
+        mockAgentUsage(agentPubkey, {
+          hasUnknownUsage: true,
+          reportCount: 3,
+          usage: {
+            estimatedCostUsd: costField(null),
+            inputTokens: usageField("400", true), // incomplete → unknown-intervals fires
+            outputTokens: usageField("100", false),
+            totalTokens: usageField("500"),
+          },
+        }),
+      ],
+      coverage: {
+        firstArchivedAt: BASE,
+        firstReportedAt: BASE,
+        hasUnknownUsage: true,
+        invalidReportCount: 1, // > 0 → invalid-reports fires
+        lastArchivedAt: BASE + DAY,
+        lastReportedAt: BASE + DAY,
+        reportCount: 3,
+      },
+    }),
+  );
+
+  await page.getByTestId(`agent-usage-row-${agentPubkey}`).click();
+  await expect(page.getByTestId("agent-usage-focused-view")).toBeVisible();
+  await expect(page.getByTestId("agent-usage-focused-totals")).toBeVisible();
+
+  // Both caveats must render — each under its own independent gate condition.
+  await expect(
+    page.getByTestId("agent-usage-focused-unknown-intervals-caveat"),
+  ).toBeVisible();
+  await expect(
+    page.getByTestId("agent-usage-focused-invalid-reports-caveat"),
+  ).toBeVisible();
+});
+
+test("overview and focused view distinguish an invalid-only window from ordinary empty windows", async ({
+  page,
+}) => {
+  // An invalid-only window: invalidReportCount > 0 but agents[] and buckets[]
+  // are empty (invalid rows are excluded from bucketing per A5/A11). The
+  // overview must NOT say "No locally archived usage" (ordinary-absent text)
+  // and the focused view must NOT show "outside-window" — both would mislabel
+  // in-window-but-uncountable evidence as absent.
+  await installMockBridge(page);
+  await openAgentsView(page);
+
+  const agentPubkey = await addGenericAgent(page, "general", "Invalid Bot");
+  await seedSeries(
+    page,
+    mockUsageSeries({
+      agents: [],
+      buckets: [],
+      coverage: {
+        firstArchivedAt: BASE,
+        firstReportedAt: null,
+        hasUnknownUsage: true,
+        invalidReportCount: 2, // the signal — no valid rows, but evidence exists
+        lastArchivedAt: BASE + DAY,
+        lastReportedAt: null,
+        reportCount: 0,
+      },
+      hasArchivedEvidence: true, // A13: true for invalid-only windows too
+    }),
+  );
+
+  // Overview: must reflect uncountable evidence, not ordinary absence.
+  const empty = page.getByTestId("agent-usage-empty");
+  await expect(empty).toBeVisible();
+  await expect(empty).toContainText("could not be counted");
+  await expect(empty).not.toContainText("No locally archived usage");
+
+  // Focused view: invalid-only state, NOT outside-window.
+  await navigateToProfile(page, agentPubkey, "usage");
+  await expect(page.getByTestId("agent-usage-focused-view")).toBeVisible();
+  await expect(
+    page.getByTestId("agent-usage-focused-invalid-only"),
+  ).toBeVisible();
+  await expect(
+    page.getByTestId("agent-usage-focused-outside-window"),
+  ).toHaveCount(0);
+});
