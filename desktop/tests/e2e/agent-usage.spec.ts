@@ -879,47 +879,100 @@ test("focused view renders the unknown-intervals and invalid-reports caveats und
   await openAgentsView(page);
 
   const agentPubkey = await addGenericAgent(page, "general", "Coverage Bot");
-  // Gate 1 (showUnknownIntervalsCaveat): inputTokens.incomplete = true.
-  // Gate 2 (showInvalidReportsCaveat): coverage.invalidReportCount > 0.
-  // Both conditions must be independently asserted; neither must fire the other.
-  await seedSeries(
-    page,
-    mockUsageSeries({
-      agents: [
-        mockAgentUsage(agentPubkey, {
+
+  // State 1: incomplete I/O (inputTokens.incomplete=true) with invalidReportCount=0.
+  // Only the unknown-intervals caveat must fire; invalid-reports must be absent.
+  // This proves the unknown-intervals gate is I/O-incompleteness, not invalidReportCount.
+  await test.step("incomplete I/O, no invalid reports → only unknown-intervals caveat", async () => {
+    await seedSeries(
+      page,
+      mockUsageSeries({
+        agents: [
+          mockAgentUsage(agentPubkey, {
+            hasUnknownUsage: true,
+            reportCount: 2,
+            usage: {
+              estimatedCostUsd: costField(null),
+              inputTokens: usageField("400", true), // incomplete → unknown-intervals fires
+              outputTokens: usageField("100", false),
+              totalTokens: usageField("500"),
+            },
+          }),
+        ],
+        coverage: {
+          firstArchivedAt: BASE,
+          firstReportedAt: BASE,
           hasUnknownUsage: true,
-          reportCount: 3,
-          usage: {
-            estimatedCostUsd: costField(null),
-            inputTokens: usageField("400", true), // incomplete → unknown-intervals fires
-            outputTokens: usageField("100", false),
-            totalTokens: usageField("500"),
-          },
-        }),
-      ],
-      coverage: {
-        firstArchivedAt: BASE,
-        firstReportedAt: BASE,
-        hasUnknownUsage: true,
-        invalidReportCount: 1, // > 0 → invalid-reports fires
-        lastArchivedAt: BASE + DAY,
-        lastReportedAt: BASE + DAY,
-        reportCount: 3,
-      },
-    }),
-  );
+          invalidReportCount: 0, // absent → invalid-reports must NOT fire
+          lastArchivedAt: BASE + DAY,
+          lastReportedAt: BASE + DAY,
+          reportCount: 2,
+        },
+      }),
+    );
+    await page.getByTestId(`agent-usage-row-${agentPubkey}`).click();
+    await expect(page.getByTestId("agent-usage-focused-view")).toBeVisible();
+    await expect(page.getByTestId("agent-usage-focused-totals")).toBeVisible();
+    await expect(
+      page.getByTestId("agent-usage-focused-unknown-intervals-caveat"),
+    ).toBeVisible();
+    await expect(
+      page.getByTestId("agent-usage-focused-invalid-reports-caveat"),
+    ).toHaveCount(0);
+  });
 
-  await page.getByTestId(`agent-usage-row-${agentPubkey}`).click();
-  await expect(page.getByTestId("agent-usage-focused-view")).toBeVisible();
-  await expect(page.getByTestId("agent-usage-focused-totals")).toBeVisible();
-
-  // Both caveats must render — each under its own independent gate condition.
-  await expect(
-    page.getByTestId("agent-usage-focused-unknown-intervals-caveat"),
-  ).toBeVisible();
-  await expect(
-    page.getByTestId("agent-usage-focused-invalid-reports-caveat"),
-  ).toBeVisible();
+  // State 2: complete I/O (no incomplete flag) with invalidReportCount>0.
+  // Only the invalid-reports caveat must fire; unknown-intervals must be absent.
+  // This proves the invalid-reports gate is invalidReportCount, not I/O incompleteness.
+  // seedSeries navigates back to the agents overview, triggering a fresh query.
+  await test.step("complete I/O, invalid reports present → only invalid-reports caveat", async () => {
+    await seedSeries(
+      page,
+      mockUsageSeries({
+        agents: [
+          mockAgentUsage(agentPubkey, {
+            reportCount: 2,
+            usage: {
+              estimatedCostUsd: costField(null),
+              inputTokens: usageField("400", false), // complete → unknown-intervals must NOT fire
+              outputTokens: usageField("100", false),
+              totalTokens: usageField("500"),
+            },
+          }),
+        ],
+        coverage: {
+          firstArchivedAt: BASE,
+          firstReportedAt: BASE,
+          hasUnknownUsage: false,
+          invalidReportCount: 1, // > 0 → invalid-reports fires
+          lastArchivedAt: BASE + DAY,
+          lastReportedAt: BASE + DAY,
+          reportCount: 2,
+        },
+      }),
+    );
+    // The focused-view query has staleTime=60s — explicitly invalidate the React
+    // Query cache so state 2 re-fetches from the updated mock rather than serving
+    // state 1's cached response.
+    await page.evaluate(() =>
+      (
+        window as Window & {
+          __BUZZ_E2E_QUERY_CLIENT__?: {
+            invalidateQueries: () => Promise<void>;
+          };
+        }
+      ).__BUZZ_E2E_QUERY_CLIENT__?.invalidateQueries(),
+    );
+    await page.getByTestId(`agent-usage-row-${agentPubkey}`).click();
+    await expect(page.getByTestId("agent-usage-focused-view")).toBeVisible();
+    await expect(page.getByTestId("agent-usage-focused-totals")).toBeVisible();
+    await expect(
+      page.getByTestId("agent-usage-focused-invalid-reports-caveat"),
+    ).toBeVisible();
+    await expect(
+      page.getByTestId("agent-usage-focused-unknown-intervals-caveat"),
+    ).toHaveCount(0);
+  });
 });
 
 test("overview and focused view distinguish an invalid-only window from ordinary empty windows", async ({
