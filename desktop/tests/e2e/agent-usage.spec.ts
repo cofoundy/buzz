@@ -921,9 +921,12 @@ test("focused view renders the unknown-intervals and invalid-reports caveats und
     ).toHaveCount(0);
   });
 
-  // State 2: complete I/O (no incomplete flag) with invalidReportCount>0.
-  // Only the invalid-reports caveat must fire; unknown-intervals must be absent.
-  // This proves the invalid-reports gate is invalidReportCount, not I/O incompleteness.
+  // State 2: complete I/O (no incomplete flag) with invalidReportCount>0,
+  // AND hasUnknownUsage=true (totalTokens incomplete) to decouple hasUnknownUsage
+  // from I/O incompleteness. Per the gate comment in AgentUsageFocusedView.tsx,
+  // hasUnknownUsage ORs total/cost incompleteness — which cannot prove an I/O
+  // interval claim. A regression gating unknown-intervals on hasUnknownUsage
+  // would wrongly fire here and fail the toHaveCount(0) assertion.
   // seedSeries navigates back to the agents overview, triggering a fresh query.
   await test.step("complete I/O, invalid reports present → only invalid-reports caveat", async () => {
     await seedSeries(
@@ -931,19 +934,20 @@ test("focused view renders the unknown-intervals and invalid-reports caveats und
       mockUsageSeries({
         agents: [
           mockAgentUsage(agentPubkey, {
+            hasUnknownUsage: true, // totalTokens incomplete → hasUnknownUsage true
             reportCount: 2,
             usage: {
               estimatedCostUsd: costField(null),
               inputTokens: usageField("400", false), // complete → unknown-intervals must NOT fire
               outputTokens: usageField("100", false),
-              totalTokens: usageField("500"),
+              totalTokens: usageField("500", true), // incomplete total → hasUnknownUsage
             },
           }),
         ],
         coverage: {
           firstArchivedAt: BASE,
           firstReportedAt: BASE,
-          hasUnknownUsage: false,
+          hasUnknownUsage: true, // mirrors agent-level: total incomplete, not I/O
           invalidReportCount: 1, // > 0 → invalid-reports fires
           lastArchivedAt: BASE + DAY,
           lastReportedAt: BASE + DAY,
