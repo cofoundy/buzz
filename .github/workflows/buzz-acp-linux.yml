@@ -1,0 +1,81 @@
+# Build the buzz-acp harness for x86_64 Linux and publish it as a release asset.
+#
+# Why this exists: upstream publishes desktop installers but no standalone
+# buzz-acp binary, and buzz-acp is what runs a 24/7 agent that is NOT tied to a
+# desktop app being open (see VISION_REMOTE_AGENTS.md — remote agents are still
+# design-stage, so the harness is the only shipped path to an always-on agent).
+#
+# Building here rather than on the target host keeps the agent box free of a
+# Rust toolchain and makes the update path reproducible and reviewable by anyone
+# on the team, instead of depending on one person's laptop.
+#
+# Update path: rebase this branch onto a newer upstream ref, run this workflow,
+# then re-run deploy/arch-box/install-buzz-acp.sh on the host.
+name: buzz-acp (linux x86_64)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [railway-deploy]
+    paths:
+      - "crates/buzz-acp/**"
+      - "crates/buzz-sdk/**"
+      - "crates/buzz-ws-client/**"
+      - "rust-toolchain.toml"
+      - ".github/workflows/buzz-acp-linux.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # rust-toolchain.toml pins the version, so `rustup show` installs exactly
+      # what the workspace expects instead of whatever the runner ships.
+      - name: Install pinned Rust toolchain
+        run: rustup show
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: buzz-acp-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: buzz-acp-${{ runner.os }}-
+
+      - name: Build
+        run: cargo build --release -p buzz-acp
+
+      # Fail loudly here rather than shipping a binary that cannot start.
+      - name: Smoke check
+        run: |
+          ./target/release/buzz-acp --help > /dev/null
+          echo "binary ok: $(./target/release/buzz-acp --help | head -1)"
+
+      - name: Publish release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          SHORT_SHA="$(git rev-parse --short HEAD)"
+          TAG="buzz-acp-linux-${SHORT_SHA}"
+          cp target/release/buzz-acp "buzz-acp-x86_64-linux"
+          sha256sum "buzz-acp-x86_64-linux" > "buzz-acp-x86_64-linux.sha256"
+          # Idempotent: re-running the workflow on the same commit replaces the
+          # assets instead of erroring on an existing tag.
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" \
+              "buzz-acp-x86_64-linux" "buzz-acp-x86_64-linux.sha256" \
+              --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$TAG" \
+              "buzz-acp-x86_64-linux" "buzz-acp-x86_64-linux.sha256" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "buzz-acp linux x86_64 @ ${SHORT_SHA}" \
+              --notes "Built from ${GITHUB_SHA} by ${GITHUB_WORKFLOW}. Consumed by deploy/arch-box/install-buzz-acp.sh."
+          fi

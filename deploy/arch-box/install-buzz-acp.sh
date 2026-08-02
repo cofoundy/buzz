@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+#
+# Install/update the buzz-acp harness on the Cofoundy agent box.
+#
+# Pulls the newest binary published by .github/workflows/buzz-acp-linux.yml
+# rather than building locally, so the host needs no Rust toolchain and the
+# running binary is always traceable to a commit.
+#
+# Usage:
+#   ./install-buzz-acp.sh              # newest published build
+#   ./install-buzz-acp.sh <short-sha>  # pin a specific build
+#
+set -euo pipefail
+
+REPO="${BUZZ_ACP_REPO:-cofoundy/buzz}"
+DEST="${BUZZ_ACP_DEST:-$HOME/.local/bin}"
+ASSET="buzz-acp-x86_64-linux"
+
+pinned="${1:-}"
+if [ -n "$pinned" ]; then
+    tag="buzz-acp-linux-${pinned#buzz-acp-linux-}"
+else
+    # Releases are listed newest-first; filter to this workflow's tag namespace
+    # so unrelated upstream releases (desktop builds, etc.) never match.
+    tag="$(gh release list --repo "$REPO" --limit 50 \
+        | awk '{print $1}' | grep '^buzz-acp-linux-' | head -1)"
+    [ -n "$tag" ] || { echo "no buzz-acp release found in $REPO — run the workflow first" >&2; exit 1; }
+fi
+
+echo "installing $tag from $REPO"
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+gh release download "$tag" --repo "$REPO" --pattern "$ASSET*" --dir "$tmp" --clobber
+
+# Verify before installing: a truncated download would otherwise land as a
+# broken binary that only fails at agent start time.
+( cd "$tmp" && sha256sum -c "${ASSET}.sha256" )
+
+mkdir -p "$DEST"
+install -m 0755 "$tmp/$ASSET" "$DEST/buzz-acp"
+
+echo "installed: $DEST/buzz-acp ($tag)"
+"$DEST/buzz-acp" --help | head -1
+
+cat <<EOF
+
+Next:
+  systemctl --user restart buzz-acp   # if the unit is already installed
+  systemctl --user status buzz-acp
+EOF
