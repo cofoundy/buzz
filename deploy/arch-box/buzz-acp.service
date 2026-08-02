@@ -16,6 +16,11 @@ Description=Buzz ACP harness (Cofoundy agent on buzz.cofoundy.dev)
 Documentation=https://github.com/block/buzz/tree/main/crates/buzz-acp
 After=network-online.target
 Wants=network-online.target
+# The relay is the source of truth for agent state, so a restart is cheap; cap
+# the churn so a misconfigured harness cannot hot-loop against the relay.
+# (These are [Unit] directives — systemd ignores them under [Service].)
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -29,11 +34,6 @@ EnvironmentFile=%h/.config/buzz-acp/buzz-acp.env
 ExecStart=%h/.local/bin/buzz-acp
 Restart=on-failure
 RestartSec=10s
-# The relay is the source of truth for agent state, so a restart is cheap; cap
-# the churn so a misconfigured harness cannot hot-loop against the relay.
-StartLimitIntervalSec=300
-StartLimitBurst=5
-
 # The agent shells out through its MCP tools, so this is not a sandbox — it
 # runs at the operator's trust level by design (VISION_AGENT.md). These are
 # blast-radius reducers, not a containment boundary.
