@@ -14,7 +14,11 @@ set -euo pipefail
 
 REPO="${BUZZ_ACP_REPO:-cofoundy/buzz}"
 DEST="${BUZZ_ACP_DEST:-$HOME/.local/bin}"
+# Both binaries: the harness's base prompt makes the `buzz` CLI the agent's
+# primary interface, so installing buzz-acp alone yields an agent that runs
+# turns and silently never replies.
 ASSET="buzz-acp-x86_64-linux"
+CLI_ASSET="buzz-x86_64-linux"
 
 pinned="${1:-}"
 if [ -n "$pinned" ]; then
@@ -34,7 +38,7 @@ echo "installing $tag from $REPO"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-gh release download "$tag" --repo "$REPO" --pattern "$ASSET*" --dir "$tmp" --clobber
+gh release download "$tag" --repo "$REPO" --pattern "*x86_64-linux*" --dir "$tmp" --clobber
 
 # Verify before installing: a truncated download would otherwise land as a
 # broken binary that only fails at agent start time.
@@ -42,9 +46,11 @@ gh release download "$tag" --repo "$REPO" --pattern "$ASSET*" --dir "$tmp" --clo
 
 mkdir -p "$DEST"
 install -m 0755 "$tmp/$ASSET" "$DEST/buzz-acp"
+install -m 0755 "$tmp/$CLI_ASSET" "$DEST/buzz"
 
-echo "installed: $DEST/buzz-acp ($tag)"
+echo "installed: $DEST/buzz-acp + $DEST/buzz ($tag)"
 "$DEST/buzz-acp" --help | head -1
+"$DEST/buzz" --help | head -1
 
 cat <<EOF
 

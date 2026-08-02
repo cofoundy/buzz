@@ -48,14 +48,18 @@ jobs:
           key: buzz-acp-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: buzz-acp-${{ runner.os }}-
 
+      # Both binaries ship together on purpose: the harness's base prompt tells
+      # the agent "the buzz CLI is your primary interface", so a host with
+      # buzz-acp but no buzz CLI runs turns that silently produce no reply.
       - name: Build
-        run: cargo build --release -p buzz-acp
+        run: cargo build --release -p buzz-acp -p buzz-cli
 
       # Fail loudly here rather than shipping a binary that cannot start.
       - name: Smoke check
         run: |
           ./target/release/buzz-acp --help > /dev/null
-          echo "binary ok: $(./target/release/buzz-acp --help | head -1)"
+          ./target/release/buzz --help > /dev/null
+          echo "binaries ok"
 
       - name: Publish release asset
         env:
@@ -65,16 +69,17 @@ jobs:
           SHORT_SHA="$(git rev-parse --short HEAD)"
           TAG="buzz-acp-linux-${SHORT_SHA}"
           cp target/release/buzz-acp "buzz-acp-x86_64-linux"
-          sha256sum "buzz-acp-x86_64-linux" > "buzz-acp-x86_64-linux.sha256"
+          cp target/release/buzz "buzz-x86_64-linux"
+          sha256sum "buzz-acp-x86_64-linux" "buzz-x86_64-linux" > "buzz-acp-x86_64-linux.sha256"
           # Idempotent: re-running the workflow on the same commit replaces the
           # assets instead of erroring on an existing tag.
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" \
-              "buzz-acp-x86_64-linux" "buzz-acp-x86_64-linux.sha256" \
+              "buzz-acp-x86_64-linux" "buzz-x86_64-linux" "buzz-acp-x86_64-linux.sha256" \
               --repo "$GITHUB_REPOSITORY" --clobber
           else
             gh release create "$TAG" \
-              "buzz-acp-x86_64-linux" "buzz-acp-x86_64-linux.sha256" \
+              "buzz-acp-x86_64-linux" "buzz-x86_64-linux" "buzz-acp-x86_64-linux.sha256" \
               --repo "$GITHUB_REPOSITORY" \
               --title "buzz-acp linux x86_64 @ ${SHORT_SHA}" \
               --notes "Built from ${GITHUB_SHA} by ${GITHUB_WORKFLOW}. Consumed by deploy/arch-box/install-buzz-acp.sh."
