@@ -22,8 +22,11 @@ if [ -n "$pinned" ]; then
 else
     # Releases are listed newest-first; filter to this workflow's tag namespace
     # so unrelated upstream releases (desktop builds, etc.) never match.
-    tag="$(gh release list --repo "$REPO" --limit 50 \
-        | awk '{print $1}' | grep '^buzz-acp-linux-' | head -1)"
+    #
+    # Read tagName via --json, never the human table: its first column is the
+    # release *title*, so column-parsing silently yields the wrong string.
+    tag="$(gh release list --repo "$REPO" --limit 50 --json tagName -q '.[].tagName' \
+        | grep '^buzz-acp-linux-' | head -1)"
     [ -n "$tag" ] || { echo "no buzz-acp release found in $REPO — run the workflow first" >&2; exit 1; }
 fi
 
