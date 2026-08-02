@@ -19,6 +19,10 @@ Wants=network-online.target
 
 [Service]
 Type=simple
+# systemd user units start with a minimal PATH that excludes ~/.local/bin, but
+# that is where both claude-agent-acp and the claude CLI it drives live. Without
+# this the harness starts and then fails to spawn its agent.
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
 # Secrets live in a chmod-600 env file, never in the unit — the unit is
 # committed to git, the env file never is.
 EnvironmentFile=%h/.config/buzz-acp/buzz-acp.env
