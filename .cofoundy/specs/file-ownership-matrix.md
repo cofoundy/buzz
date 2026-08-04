@@ -27,7 +27,25 @@ de merge imposible. El índice compartido lo escribe solo el CTO.
 
 ## Repos tocados
 
-Dos: `cofoundy/buzz` (código) y `block/buzz` (un comentario de evidencia en #2876,
-sin PR). Se declara acá porque `task_graph_repos_gt: 1` es un umbral que el gate de
-Phase 5 evalúa — el segundo repo es una acción de solo-comentario, no un cambio de
-código.
+**Uno: `cofoundy/buzz`.** (Corregido en el gate de Phase 5, AM-1.)
+
+El comentario de evidencia en `block/buzz#2876` **no está en el grafo de tareas** — es
+una **acción de CTO**, fuera de las lanes, por cuatro razones:
+
+1. No tiene aceptación testeable: es un acto comunicativo, no compila ni corre.
+2. Es irreversible y público bajo identidad de la organización, en el repo de un
+   tercero — asimétrico respecto de todo lo demás del grafo, revertible con `git revert`.
+3. El operador delegó esa decisión **al gate**, no a un worker. Una lane publicando en
+   `block/buzz` sería una delegación estrictamente mayor que la que se hizo.
+4. Su contenido es gobernanza (evidencia, no veredicto; no arbitrar entre terceros),
+   no implementación. Los workers cargan specs, no gobernanza.
+
+Restricción vinculante: **IC-3 — un solo comentario.** Si genera debate entre PRs o
+intercambio con mantenedores de Block, excede la delegación y vuelve a gate humano.
+
+Secuencia: `T-001 ∥ T-002 → T-003 → acción CTO upstream`. El comentario está bloqueado
+por el mismo candado de vault que T-003: su aporte diferencial es la reproducción
+contra un relay vivo, así que publicarlo antes sería publicar sin la evidencia que lo
+justifica.
+
+Ninguna lane escribe en `block/buzz`. Ninguna lane tiene esa ruta en su `scope.write`.
