@@ -37,3 +37,5 @@
 {"ts": "2026-08-04T18:08:54Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
 {"ts": "2026-08-04T18:08:59Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
 {"ts": "2026-08-04T18:08:59Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:12:05Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "python3"}
+{"ts": "2026-08-04T18:12:05Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "python3"}
