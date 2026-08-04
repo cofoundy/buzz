@@ -1,0 +1,23 @@
+schema_version: 1.0
+last_phase: 2
+last_phase_at: 2026-08-04T12:38:00-05:00
+project_root: /Users/styreep/.herdr/worktrees/buzz/sprint-buzz-cli-usable
+worker_id: cto-63ad7a
+domain: software
+session_mode: delivery
+base_branch: railway-deploy
+work_branch: sprint/buzz-cli-usable
+
+gates_passed: []
+
+gates_pending:
+  - phase_2_arch_approval    # amend applied, re-gate in flight; approve requires F1c refute-pass
+  - phase_5_task_approval
+  - phase_11_deploy_approval
+
+known_gaps:
+  - id: G-1
+    what: Vaultwarden locked (`bw status` → locked); no BUZZ_PRIVATE_KEY / NOSTR_PRIVATE_KEY in env
+    blocks: the live-relay evidence lines only (T-001 acc.4 clean-box push, T-002 acc.4 protect set)
+    does_not_block: all code, tests, CI, docs — both lanes implement fully without it
+    unlock: operator runs `! bw unlock` (interactive, Touch ID / master password)
