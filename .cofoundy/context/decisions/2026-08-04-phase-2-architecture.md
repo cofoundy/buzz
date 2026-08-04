@@ -315,3 +315,10 @@ nombra las condiciones que me dan vuelta.
    operador. Con Buzz siendo un fork vivo de un repo de Block, ese hueco se va a volver a pisar.
    Candidato a `handbook/governance/` en el próximo ciclo — anotado aquí para que exista rastro, no
    para actuarlo ahora.
+
+## Refute-pass
+**Triggered by:** blast-radius over threshold (n/a)
+**Verdict:** SUSTAIN
+**Refuter argument:** SUSTAIN con tres premisas refutadas, ninguna toca el radio de explosion. (1) No hay 'hunk comun': #4363 usa Timestamp::now().as_secs().max(head_floor), #4509 usa bumped_head.max(Timestamp::now().as_secs()) — semantica comun, texto distinto; IC-1 ya rutea el caso. (2) El beneficio de patch-id en rebase es estructuralmente CERO, no 'probabilidad': A1 (adoptar tests de ambos PRs) y A3 (comentario propio en el mismo hunk) garantizan cada una que nuestro diff no coincide con ningun patch-id upstream. Dos enmiendas del propio doc matan el beneficio en que descansa su justificacion. (3) 'CI verde' en #4363/#4509 es NO-SENAL: gh pr checks muestra solo DCO+Semgrep+zizmor, cero builds de Rust, cero unit tests — su codigo nunca fue compilado upstream. #2901, descartado como 'CI fallando', PASA Build linux/amd64+arm64, relay e2e y Desktop; falla solo DCO signoff + Security. Es exactamente el misread de statusCheckRollup que git-strategy pre-registra (inbox-ai#278). Consecuencia: los tests de #4363 traen asserts vacuos (>= 1000 contra fixture de 100; >= 101 contra wall clock ~1.7e9) que T-002 mandaba adoptar verbatim. La decision (portar al fork, ningun cuarto PR, comentario de evidencia, reescribir el comentario, verificacion contra relay vivo) sobrevive intacta: el rechazo de #2901 por perdida de monotonia es correcto por su cuenta, cargo test/clippy/fmt en T-002 es el gate real, el texto publicado en #2876 no contiene ninguna afirmacion sobre CI, e IC-3 ya rutea a gate humano un 'cual mergeamos' de un mantenedor.
+**Disagreement handling:** no disagreement — approve stands
+**Recorded:** 2026-08-04T12:49:08-05:00
