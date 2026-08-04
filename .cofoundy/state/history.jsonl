@@ -31,3 +31,9 @@
 {"ts": "2026-08-04T18:08:17Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "python3"}
 {"ts": "2026-08-04T18:08:17Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "python3"}
 {"ts": "2026-08-04T18:08:17Z", "event": "task_completed", "task": "T-002", "agent": "cli", "cycle": "buzz-cli-usable", "summary": "max(head+1,now) portado de #4363/#4509; 273 passed 0 failed, clippy -D warnings limpio, fmt limpio; ambas propiedades verificadas por mutacion"}
+{"ts": "2026-08-04T18:08:38Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:08:38Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:08:54Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:08:54Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:08:59Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:08:59Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
