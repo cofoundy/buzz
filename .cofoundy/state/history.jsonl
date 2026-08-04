@@ -5,3 +5,35 @@
 {"ts": "2026-08-04T17:49:07Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "python3"}
 {"ts": "2026-08-04T17:51:36Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "python3"}
 {"ts": "2026-08-04T17:51:36Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "python3"}
+{"ts": "2026-08-04T18:00:05Z", "event": "cto_gate_allow_orchestrator", "target": ["/Users/styreep/cofoundy/products/buzz/.claude/worktrees/agent-aa4a3d4e9f60df421/crates/buzz-cli/src/commands/repos.rs"]}
+{"ts": "2026-08-04T18:00:14Z", "event": "cto_gate_allow_orchestrator", "target": ["/Users/styreep/cofoundy/products/buzz/.claude/worktrees/agent-aa4a3d4e9f60df421/crates/buzz-cli/src/commands/repos.rs"]}
+{"ts": "2026-08-04T18:00:24Z", "event": "cto_gate_allow_orchestrator", "target": ["/Users/styreep/cofoundy/products/buzz/.claude/worktrees/agent-aa4a3d4e9f60df421/crates/buzz-cli/src/commands/repos.rs"]}
+{"ts": "2026-08-04T18:00:44Z", "event": "cto_gate_allow_orchestrator", "target": ["/Users/styreep/cofoundy/products/buzz/.claude/worktrees/agent-aa4a3d4e9f60df421/crates/buzz-cli/src/commands/repos.rs"]}
+{"ts": "2026-08-04T18:01:08Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:01:08Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:03:36Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:03:36Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:04:03Z", "event": "cto_gate_allow_orchestrator", "target": ["/Users/styreep/cofoundy/products/buzz/.claude/worktrees/agent-aa4a3d4e9f60df421/crates/buzz-cli/src/commands/repos.rs"]}
+{"ts": "2026-08-04T18:04:07Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:04:07Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:04:31Z", "event": "cto_gate_allow_orchestrator", "target": ["/Users/styreep/cofoundy/products/buzz/.claude/worktrees/agent-aa4a3d4e9f60df421/crates/buzz-cli/src/commands/repos.rs"]}
+{"ts": "2026-08-04T18:04:35Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:04:35Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:05:02Z", "event": "cto_gate_allow_orchestrator", "target": ["/Users/styreep/cofoundy/products/buzz/.claude/worktrees/agent-aa4a3d4e9f60df421/crates/buzz-cli/src/commands/repos.rs"]}
+{"ts": "2026-08-04T18:05:07Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:05:07Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:05:11Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:05:11Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:05:34Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:05:34Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:06:16Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:06:16Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:08:17Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "python3"}
+{"ts": "2026-08-04T18:08:17Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "python3"}
+{"ts": "2026-08-04T18:08:17Z", "event": "task_completed", "task": "T-002", "agent": "cli", "cycle": "buzz-cli-usable", "summary": "max(head+1,now) portado de #4363/#4509; 273 passed 0 failed, clippy -D warnings limpio, fmt limpio; ambas propiedades verificadas por mutacion"}
+{"ts": "2026-08-04T18:08:38Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:08:38Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:08:54Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:08:54Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:08:59Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
+{"ts": "2026-08-04T18:08:59Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "cargo"}
