@@ -142,13 +142,27 @@ fn build_updated_repo_announcement(
         ))
     })?;
 
-    // Advance only the observed head. Using wall-clock time here would let a
-    // delayed writer leapfrog an intervening update and silently erase metadata.
-    let next_created_at = existing
+    // Stamp the replacement at max(head + 1, now). Both floors are load-bearing,
+    // and each one alone is a distinct bug:
+    //
+    // * `head + 1` protects MONOTONICITY: a delayed writer can never stamp at or
+    //   below the head it derived from, so it cannot leapfrog an intervening
+    //   update and silently erase metadata. This is the binding floor when the
+    //   observed head sits in the future (a peer's clock running ahead).
+    // * `now` protects FRESHNESS: the relay rejects any event drifting more than
+    //   MAX_TIMESTAMP_DRIFT_SECS (±900s) from wall clock. Advancing by one second
+    //   never catches up to the present, so 15 minutes after an announcement every
+    //   further edit is refused and the metadata is frozen permanently (#2876).
+    //   This is the binding floor for a stale head.
+    //
+    // Wall-clock alone would keep freshness but lose monotonicity; `head + 1`
+    // alone is the frozen-metadata bug. The max preserves both simultaneously.
+    let head_floor = existing
         .created_at
         .as_secs()
         .checked_add(1)
         .ok_or_else(|| CliError::Other("repository timestamp cannot be advanced".into()))?;
+    let next_created_at = head_floor.max(Timestamp::now().as_secs());
     buzz_sdk::build_repo_announcement_with_tags(repo_id, &existing.content, tags)
         .map_err(|error| CliError::Other(format!("failed to build repository update: {error}")))
         .map(|builder| builder.custom_created_at(Timestamp::from(next_created_at)))
@@ -501,6 +515,7 @@ mod tests {
         let replacement = build_protection_tag("refs/heads/main", Some("admin"), true, true, false)
             .expect("valid replacement");
 
+        let before = Timestamp::now().as_secs();
         let updated = build_updated_repo_announcement(
             &existing,
             RepoChange::SetProtection(Box::new(replacement)),
@@ -508,9 +523,14 @@ mod tests {
         .expect("build update")
         .sign_with_keys(&Keys::generate())
         .expect("sign update");
+        let after = Timestamp::now().as_secs();
 
         assert_eq!(updated.content, "repository content");
-        assert_eq!(updated.created_at.as_secs(), 101);
+        // Stale head (created_at 100): `now` is the binding floor, so the stamp
+        // lands in the wall-clock window this call spanned — never the old
+        // `head + 1` literal, which the relay would reject as stale (#2876).
+        assert!(updated.created_at.as_secs() >= before);
+        assert!(updated.created_at.as_secs() <= after);
         assert!(!updated
             .tags
             .iter()
@@ -579,6 +599,69 @@ mod tests {
             .tags
             .iter()
             .any(|tag| { tag.as_slice() == ["buzz-protect", "refs/heads/release", "push:owner"] }));
+    }
+
+    /// MONOTONICITY: the `head + 1` floor binds when the observed head is in the
+    /// future (peer clock ahead, still inside relay drift). Falling back to
+    /// wall-clock `now` here would stamp *below* the head this update was derived
+    /// from and lose the NIP-33 LWW race against it — silently erasing metadata.
+    #[test]
+    fn update_of_fresh_head_stays_monotonic_over_it() {
+        let head = Timestamp::now().as_secs() + 100;
+        let existing = signed_repo(
+            vec![
+                tag(&["d", "demo"]),
+                tag(&["buzz-protect", "refs/heads/main", "no-delete"]),
+            ],
+            "",
+            head,
+        );
+
+        let updated = build_updated_repo_announcement(
+            &existing,
+            RepoChange::RemoveProtection("refs/heads/main".into()),
+        )
+        .expect("build removal")
+        .sign_with_keys(&Keys::generate())
+        .expect("sign removal");
+
+        assert_eq!(updated.created_at.as_secs(), head + 1);
+    }
+
+    /// FRESHNESS: the `now` floor binds for a stale head. The relay rejects any
+    /// event drifting more than MAX_TIMESTAMP_DRIFT_SECS (±900s) from wall clock,
+    /// so `head + 1` alone froze metadata permanently 15 minutes after the last
+    /// edit (#2876). This is the regression test for that bound.
+    #[test]
+    fn updated_announcement_stays_within_relay_drift_window_for_stale_head() {
+        const MAX_TIMESTAMP_DRIFT_SECS: i64 = 900;
+
+        let stale = Timestamp::now().as_secs() - 7200; // 2h old
+        let existing = signed_repo(
+            vec![tag(&["d", "demo"]), tag(&["buzz-channel", "channel-id"])],
+            "repository content",
+            stale,
+        );
+        let replacement = build_protection_tag("refs/heads/main", Some("admin"), true, true, false)
+            .expect("valid replacement");
+
+        let updated = build_updated_repo_announcement(
+            &existing,
+            RepoChange::SetProtection(Box::new(replacement)),
+        )
+        .expect("build update")
+        .sign_with_keys(&Keys::generate())
+        .expect("sign update");
+
+        let now = Timestamp::now().as_secs();
+        let drift = updated.created_at.as_secs() as i64 - now as i64;
+        assert!(
+            drift.abs() <= MAX_TIMESTAMP_DRIFT_SECS,
+            "replacement drifted {drift}s from wall clock — the relay would reject \
+             it (limit ±{MAX_TIMESTAMP_DRIFT_SECS}s)"
+        );
+        // …and it still advanced past the stale head it was derived from.
+        assert!(updated.created_at.as_secs() > stale);
     }
 
     #[test]
@@ -697,14 +780,19 @@ mod tests {
             100,
         );
 
+        let before = Timestamp::now().as_secs();
         let updated =
             build_updated_repo_announcement(&existing, RepoChange::BindChannel(channel.clone()))
                 .expect("build bind update")
                 .sign_with_keys(&Keys::generate())
                 .expect("sign bind update");
+        let after = Timestamp::now().as_secs();
 
         assert_eq!(updated.content, "repository content");
-        assert_eq!(updated.created_at.as_secs(), 101);
+        // Stale head (created_at 100): `now` binds, so `repos bind` keeps working
+        // past the relay's 15-minute drift window instead of freezing (#2876).
+        assert!(updated.created_at.as_secs() >= before);
+        assert!(updated.created_at.as_secs() <= after);
         // Exactly one binding remains, and it is the requested one.
         let bindings: Vec<_> = updated
             .tags
