@@ -1,5 +1,5 @@
 schema_version: 1.0
-last_phase: 7
+last_phase: 12
 last_phase_at: 2026-08-04T13:15:00-05:00
 project_root: /Users/styreep/.herdr/worktrees/buzz/sprint-buzz-cli-usable
 worker_id: cto-63ad7a
@@ -35,7 +35,15 @@ lanes_dispatched:
     task: T-001
     branch: lane/ci-git-credential-nostr
     isolation: worktree
-    status: in_progress
+    status: completed
+    merged_at: 2026-08-04T14:05:00-05:00
+    merge_commit: dc3ce23d6
+    remote_head_asserted: 67c98bb8f
+    verified_independently:
+      - downloaded release buzz-acp-linux-f40de5a, 3/3 assets match the sha256 manifest
+      - run 30936986998 green on all 10 steps
+      - every README error string grepped against crate source (lib.rs:35/:57/:197) — all match
+    pr: cofoundy/buzz#3 (auto-closed MERGED)
   - role: cli
     task: T-002
     branch: lane/cli-timestamp-unfreeze
@@ -81,3 +89,17 @@ operational_findings:
     what: orphan .git/worktrees/<wt>/index.lock appeared twice while subagents ran
     cause: subagents running git in the SAME worktree contend on the index
     fix_applied: both lanes dispatched with isolation=worktree, eliminating contention
+
+loop_completed_at: 2026-08-04T14:20:00-05:00
+cycle_status: >-
+  NOT closed. T-001 and T-002 delivered, verified and merged; the brief's closing
+  criterion is evidence executed against buzz.cofoundy.dev, which T-003 carries and
+  which is blocked on the operator unlocking Vaultwarden. Delivered != closed.
+final_head: b7f5b2c38
+handoff: .cofoundy/state/next-session-prompt.md
+exec_summary: docs/reports/buzz-cli-usable.md (NOT yet published to Basalt — OAuth needs the operator)
+process_misses:
+  - The registry claim was never heartbeated across phase transitions, so it aged out
+    before Phase 12. No collision resulted (no other worker claimed this repo), but the
+    ledger stopped reflecting reality mid-run — the same drift class the queue-vs-reality
+    check exists to catch.

@@ -27,3 +27,5 @@
 {"ts": "2026-08-04T18:11:41Z", "event": "task_completed", "task": "T-001", "agent": "ci", "cycle": "2026-08-04", "summary": "git-credential-nostr shipped by CI: workflow builds/smokes/publishes 3 binaries, installer installs 3, deploy/arch-box/README.md created; verified green run 30936986998 + gh release view buzz-acp-linux-f40de5a"}
 {"ts": "2026-08-04T18:15:46Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "python3"}
 {"ts": "2026-08-04T18:17:55Z", "event": "cto_gate_allow_orchestrator", "target": ["/Users/styreep/.herdr/worktrees/buzz/sprint-buzz-cli-usable/docs/reports/buzz-cli-usable.md"]}
+{"ts": "2026-08-04T18:21:15Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "python3"}
+{"ts": "2026-08-04T18:21:15Z", "event": "scope_advisory", "reason": "interpreter_write_invisible", "interpreters": "python3"}
