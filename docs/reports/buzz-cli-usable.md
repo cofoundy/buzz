@@ -127,6 +127,6 @@ normal no lo repite.
 
 ## Referencias
 
-- Rama: `sprint/buzz-cli-usable` @ `dc3ce23d6` · PR [#3](https://github.com/cofoundy/buzz/pull/3) (merged)
+- Rama: `sprint/buzz-cli-usable` @ `40d266cb5` (14 commits sobre `railway-deploy`) · PR [#3](https://github.com/cofoundy/buzz/pull/3) (merged)
 - Substrate del ciclo: `.cofoundy/` — decisiones de gate, arquitectura, tasks, reportes por lane
 - Borrador upstream: `.cofoundy/state/upstream-2876-comment.draft.md`
