@@ -1,105 +1,21 @@
 schema_version: 1.0
-last_phase: 12
-last_phase_at: 2026-08-04T13:15:00-05:00
-project_root: /Users/styreep/.herdr/worktrees/buzz/sprint-buzz-cli-usable
-worker_id: cto-63ad7a
-domain: software
-session_mode: delivery
-base_branch: railway-deploy
-work_branch: sprint/buzz-cli-usable
-
-gates_passed:
-  - phase_2_arch_approval:
-      at: 2026-08-04T12:49:00-05:00
-      result: approve (after one amend round; A1-A5 landed)
-      decision_file: .cofoundy/context/decisions/2026-08-04-phase-2-architecture.md
-      refute_pass: SUSTAIN — refuted three supporting premises, none touching the decision
-      binding_conditions: [IC-1, IC-2, IC-3]
-  - phase_5_task_approval:
-      at: 2026-08-04T13:10:00-05:00
-      result: amend (four contracts a-d PASSED; AM-1..AM-4 applied and verified on disk)
-      decision_file: .cofoundy/context/decisions/2026-08-04-phase-5-task-graph.md
-      confirmation_regate: skipped
-      skip_justification: >-
-        The gate's four contracts PASSED; the sole stated reason not to dispatch was
-        AM-3 (the credential-mint hole), which is mechanical and was verified applied
-        in all three task files by direct grep. AM-1 was also applied, which the gate
-        pre-registered as the condition under which task_graph_repos_gt stops firing.
-        This is the CTO's call, not the gate's — recorded here rather than hidden.
-
+cycle: relay-upgrade
+last_phase: 11
+last_phase_at: 2026-08-25T22:30:00-05:00
+project_root: /Users/styreep/cofoundy/products/buzz-cto-relay-upgrade
+worker_id: cto-e3e022
+branch: cto/relay-upgrade-rebase
+upstream_base: 52621c09bea503f4d5860030dfabfaf9ade71bfa
+pr: https://github.com/cofoundy/buzz/pull/5
+superseded_pr: https://github.com/cofoundy/buzz/pull/4
+verified:
+  - "cargo check -p buzz-relay -> Finished, sin errores"
+  - "7/7 archivos exclusivos del fork presentes tras el rebase"
+  - "6/6 migraciones presentes; 0 destructivas de filas"
+  - "remote HEAD == local HEAD (c28ac821)"
+unverified:
+  - "CI de GitHub: en vuelo al cierre (monitor armado). El PR #4 no dio senal alguna."
+  - "docker build del deploy/railway/Dockerfile: NO ejecutado localmente"
+  - "migraciones contra una DB real: NO ejecutadas"
 gates_pending:
-  - phase_11_deploy_approval
-
-lanes_dispatched:
-  - role: ci
-    task: T-001
-    branch: lane/ci-git-credential-nostr
-    isolation: worktree
-    status: completed
-    merged_at: 2026-08-04T14:05:00-05:00
-    merge_commit: dc3ce23d6
-    remote_head_asserted: 67c98bb8f
-    verified_independently:
-      - downloaded release buzz-acp-linux-f40de5a, 3/3 assets match the sha256 manifest
-      - run 30936986998 green on all 10 steps
-      - every README error string grepped against crate source (lib.rs:35/:57/:197) — all match
-    pr: cofoundy/buzz#3 (auto-closed MERGED)
-  - role: cli
-    task: T-002
-    branch: lane/cli-timestamp-unfreeze
-    isolation: worktree
-    status: completed
-    merged_at: 2026-08-04T13:40:00-05:00
-    merge_commit: 1c6517fa5
-    remote_head_asserted: 9c447e5a5 (local == gh api branches/... .commit.sha)
-    verified_independently:
-      - cargo test -p buzz-cli = 273 passed 0 failed (CTO ran it, not the lane's claim)
-      - both property tests execute by name (monotonic / drift_window)
-      - clippy -D warnings clean, fmt clean
-      - zero timestamp literals remain, DCO trailer on all 3 commits
-
-cto_actions_outside_the_graph:
-  - id: A-1
-    what: evidence comment on block/buzz#2876
-    draft: .cofoundy/state/upstream-2876-comment.draft.md
-    governed_by: IC-3 (exactly one comment; debate or maintainer exchange returns to human gate)
-    sequenced_after: T-003
-    status: drafted, NOT published — requires operator authorization (public, irreversible, third-party repo)
-
-known_gaps:
-  - id: G-1
-    what: Vaultwarden locked (`bw status` → locked); no BUZZ_PRIVATE_KEY / NOSTR_PRIVATE_KEY in env
-    blocks: T-003 (all three live evidences) and, behind it, the upstream comment
-    does_not_block: T-001, T-002 — code, tests, CI, installer, docs all verifiable without it
-    unlock: operator runs `! bw unlock` and exports the key
-    consequence: >-
-      The graph is dispatchable; the cycle is NOT closeable. The brief's closing
-      criterion is evidence executed against buzz.cofoundy.dev, not a green build.
-      These are different things and must not be conflated when reporting.
-
-operational_findings:
-  - id: OF-2
-    what: hooks append a scope_advisory line to history.jsonl on EVERY cargo invocation
-    consequence: >-
-      Running the gates against a lane's worktree dirties that worktree. A dirty tree
-      after a CTO verification run is the CTO's own telemetry, NOT a live worker
-      holding state. Do not read it as a teardown blocker (F25 sensor confusion).
-    surfaced_by: lane cli
-  - id: OF-1
-    what: orphan .git/worktrees/<wt>/index.lock appeared twice while subagents ran
-    cause: subagents running git in the SAME worktree contend on the index
-    fix_applied: both lanes dispatched with isolation=worktree, eliminating contention
-
-loop_completed_at: 2026-08-04T14:20:00-05:00
-cycle_status: >-
-  NOT closed. T-001 and T-002 delivered, verified and merged; the brief's closing
-  criterion is evidence executed against buzz.cofoundy.dev, which T-003 carries and
-  which is blocked on the operator unlocking Vaultwarden. Delivered != closed.
-final_head: b7f5b2c38
-handoff: .cofoundy/state/next-session-prompt.md
-exec_summary: docs/reports/buzz-cli-usable.md (NOT yet published to Basalt — OAuth needs the operator)
-process_misses:
-  - The registry claim was never heartbeated across phase transitions, so it aged out
-    before Phase 12. No collision resulted (no other worker claimed this repo), but the
-    ledger stopped reflecting reality mid-run — the same drift class the queue-vs-reality
-    check exists to catch.
+  - phase_11_deploy_approval: E-001 (backup del Postgres)
