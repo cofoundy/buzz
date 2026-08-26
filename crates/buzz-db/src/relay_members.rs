@@ -29,11 +29,38 @@ pub struct RelayMember {
 
 /// Returns `true` if `pubkey` (64-char hex) is a member of `community`.
 pub async fn is_relay_member(pool: &PgPool, community: CommunityId, pubkey: &str) -> Result<bool> {
+    let mut conn = pool.acquire().await?;
+    is_relay_member_on(&mut conn, community, pubkey).await
+}
+
+/// [`is_relay_member`] on a specific session — the replica-routing path runs
+/// the lookup on the exact reader connection whose heartbeat observation
+/// proved fence coverage.
+pub(crate) async fn is_relay_member_on(
+    conn: &mut sqlx::PgConnection,
+    community: CommunityId,
+    pubkey: &str,
+) -> Result<bool> {
     let row = sqlx::query("SELECT 1 FROM relay_members WHERE community_id = $1 AND pubkey = $2")
         .bind(community.as_uuid())
         .bind(pubkey)
-        .fetch_optional(pool)
+        .fetch_optional(conn)
         .await?;
+    Ok(row.is_some())
+}
+
+/// Returns `true` if any member of `community` holds the `admin` or `owner`
+/// role. Open relays don't *enforce* the roster, but startup
+/// (`bootstrap_owner`) and operator provisioning still populate it — this is
+/// how the workspace-profile gate detects whether a steward exists.
+pub async fn has_admin_or_owner(pool: &PgPool, community: CommunityId) -> Result<bool> {
+    let row = sqlx::query(
+        "SELECT 1 FROM relay_members \
+         WHERE community_id = $1 AND role IN ('admin', 'owner') LIMIT 1",
+    )
+    .bind(community.as_uuid())
+    .fetch_optional(pool)
+    .await?;
     Ok(row.is_some())
 }
 
@@ -446,10 +473,13 @@ pub async fn transfer_ownership(
 
     // 1. Serialize on the transferee so concurrent transfers to the same
     //    recipient cannot both pass the ownership count check.
-    sqlx::query("SELECT pg_advisory_xact_lock($1)")
-        .bind(owner_count_advisory_lock_key(&pubkey))
-        .execute(&mut *tx)
-        .await?;
+    crate::observability::observe_advisory_lock(
+        crate::observability::LockType::Membership,
+        sqlx::query("SELECT pg_advisory_xact_lock($1)")
+            .bind(owner_count_advisory_lock_key(&pubkey))
+            .execute(&mut *tx),
+    )
+    .await?;
 
     // 2. Lock the current owner row FOR UPDATE and verify the expected owner.
     //    FOR UPDATE prevents the stale-owner race: a concurrent transfer that
@@ -610,7 +640,7 @@ mod tests {
     use super::*;
     use uuid::Uuid;
 
-    const TEST_DB_URL: &str = "postgres://buzz:buzz_dev@localhost:5432/buzz";
+    const TEST_DB_URL: &str = "postgres://buzz:buzz_dev@localhost:5432/buzz"; // sadscan:disable np.postgres.1 -- local test-only credentials
 
     async fn setup_pool() -> PgPool {
         let database_url = std::env::var("BUZZ_TEST_DATABASE_URL")
