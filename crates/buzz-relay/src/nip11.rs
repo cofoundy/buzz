@@ -413,7 +413,10 @@ mod tests {
         std::env::remove_var("RELAY_NAME");
         std::env::remove_var("RELAY_DESCRIPTION");
         assert_eq!(relay_display_name(), "Buzz Relay");
-        assert_eq!(relay_description(), "Buzz — private team communication relay");
+        assert_eq!(
+            relay_description(),
+            "Buzz — private team communication relay"
+        );
 
         // Set: the operator's own identity, trimmed.
         std::env::set_var("RELAY_NAME", "  Cofoundy  ");
