@@ -72,3 +72,8 @@ identity.key
 
 # Helm dependency tarballs — regenerable from Chart.lock via `helm dependency build`
 deploy/charts/*/charts/*.tgz
+
+# CTO worker identity — per-process runtime state, never shared substrate (F5/F15)
+.cofoundy/state/active-agent.yaml
+.cofoundy/state/active-task.yaml
+.cofoundy/state/worker-id
