@@ -1,0 +1,41 @@
+# NIP-AB device-pairing sidecar (Cofoundy / Railway).
+#
+# WHY THIS EXISTS
+# ---------------
+# Scanning the pairing QR in Buzz Mobile fails with
+#   `WebSocket connection failed: HTTP error: 404 Not Found`
+# when the relay does not advertise a pairing relay. Without
+# `BUZZ_PAIRING_RELAY_URL` set, the main relay omits `pairing_relay_url` from
+# its NIP-11 document and clients fall back to the legacy same-host `/pair`
+# convention — a path the relay has never served. Upstream names the failure
+# in crates/buzz-relay/src/nip11.rs: "open relays misroutes pairing peers to a
+# non-existent /pair sidecar".
+#
+# The fix is this service plus `BUZZ_PAIRING_RELAY_URL` on the main relay.
+#
+# WHAT IT IS
+# ----------
+# `buzz-pair-relay` is an ephemeral, STATELESS relay that brokers NIP-AB
+# handshakes between a desktop and a phone. It holds no database, needs no
+# volume, and keeps pairing state only in memory for the life of a handshake.
+# Restarting it drops in-flight pairings and nothing else.
+#
+# The binary already ships inside the upstream image at
+# /usr/local/bin/buzz-pair-relay — this wrapper only starts it. Keep BUZZ_IMAGE
+# byte-identical to deploy/railway/Dockerfile so both services run the same
+# build; a drift between them is a version skew nobody would think to check.
+#
+# NOTE ON EXPOSURE: this endpoint is intentionally public and unauthenticated —
+# that is the NIP-AB design (upstream runs wss://pairing.buzz.xyz the same way).
+# Security comes from the handshake itself, not from network reachability.
+ARG BUZZ_IMAGE=ghcr.io/block/buzz:sha-b1b283c
+FROM ${BUZZ_IMAGE}
+
+# No volume to chown, so unlike the main relay's wrapper this never needs root.
+USER buzz
+
+COPY deploy/railway/pair-relay-entrypoint.sh /usr/local/bin/buzz-pair-relay-entrypoint.sh
+
+EXPOSE 5000
+
+ENTRYPOINT ["/usr/local/bin/buzz-pair-relay-entrypoint.sh"]
