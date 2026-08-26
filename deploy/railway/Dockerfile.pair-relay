@@ -28,7 +28,7 @@
 # NOTE ON EXPOSURE: this endpoint is intentionally public and unauthenticated —
 # that is the NIP-AB design (upstream runs wss://pairing.buzz.xyz the same way).
 # Security comes from the handshake itself, not from network reachability.
-ARG BUZZ_IMAGE=ghcr.io/block/buzz:sha-b1b283c
+ARG BUZZ_IMAGE=ghcr.io/block/buzz:sha-52621c0
 FROM ${BUZZ_IMAGE}
 
 # No volume to chown, so unlike the main relay's wrapper this never needs root.

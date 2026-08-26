@@ -12,7 +12,7 @@
 # (find one under the repo's "Docker image" workflow runs). Never point this at
 # `:latest` or `:main` — a redeploy would then silently jump versions and the
 # running code would stop matching what any doc claims.
-ARG BUZZ_IMAGE=ghcr.io/block/buzz:sha-b1b283c
+ARG BUZZ_IMAGE=ghcr.io/block/buzz:sha-52621c0
 FROM ${BUZZ_IMAGE}
 
 USER root
