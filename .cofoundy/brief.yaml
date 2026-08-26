@@ -1,0 +1,60 @@
+schema_version: 1.0
+name: buzz-cli-usable
+domain: software
+session_mode: delivery
+started: 2026-08-04
+owner: Andre (A-PachecoT)
+
+goal: >
+  Hacer usable el CLI de Buzz en una caja limpia del equipo. Dos defectos
+  bloquean eso hoy: (1) el CI del fork no shippea git-credential-nostr, así que
+  git push contra el relay exige compilar un binario a mano; (2) los metadatos
+  de un repo se congelan a los 15 minutos, dejando `repos bind` y
+  `repos protect` permanentemente inutilizables.
+
+repo: cofoundy/buzz
+base_branch: railway-deploy      # NUNCA main — main sigue al upstream de Block
+work_branch: sprint/buzz-cli-usable
+relay: https://buzz.cofoundy.dev
+
+issues:
+  - id: cofoundy/buzz#1
+    title: CI no shippea git-credential-nostr
+    lane: ci
+  - id: cofoundy/buzz#2
+    title: metadatos de repo congelados a los 15 min (upstream block/buzz#2876)
+    lane: cli
+
+mvp_scope:
+  - git-credential-nostr sale como release asset del fork y lo instala install-buzz-acp.sh
+  - una caja sin toolchain de Rust puede clonar y pushear siguiendo solo el README
+  - repos protect / repos bind funcionan sobre un repo anunciado hace más de 15 min
+  - el fix del timestamp preserva la monotonía (un writer demorado no pisa una edición intermedia)
+
+out_of_scope:
+  - Tocar el Dockerfile del relay o deploy/railway/ (guardrail explícito del issue #1)
+  - Ampliar MAX_TIMESTAMP_DRIFT_SECS en el relay (guardrail explícito del issue #2 — la ventana es defensa anti-replay, no el bug)
+  - Modificar la lógica del crate git-credential-nostr (funciona; verificado con push y clone reales)
+  - Rebasear o forzar sobre railway-deploy
+  - Onboarding del equipo / sunset de Discord (bloqueado por handbook#2, fase 3)
+
+agents:
+  roles:
+    - ci
+    - cli
+
+recon_findings:
+  - id: R-1
+    what: deploy/arch-box/ no tiene README
+    impact: el issue #1 pide documentar en "el README del deploy" pero no existe; la lane ci lo crea
+  - id: R-2
+    what: el paths: trigger del workflow no incluye crates/git-credential-nostr/**
+    impact: un cambio al helper no redispara el build; gap adyacente, se corrige en la misma lane
+  - id: R-3
+    what: repos.rs:523 y :717 assertean created_at == 101 exacto
+    impact: max(now, existing+1) rompe ambos tests; deben assertear monotonía + frescura, no un literal
+
+references:
+  - handbook/infrastructure/buzz/BITACORA.md
+  - handbook/infrastructure/buzz/bitacora/2026-08-01-auditoria-fase2.md
+  - https://github.com/block/buzz/issues/2876

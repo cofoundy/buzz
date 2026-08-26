@@ -1,0 +1,176 @@
+# escalation-thresholds.yaml — governance thresholds for ceo-agent + /cto hard gates
+#
+# SCAFFOLDED BY: /cofoundy-init Step 5 → `.cofoundy/context/constraints/escalation-thresholds.yaml`
+# READ BY:       `agents/ceo-agent.md` — Decision Algorithm step 2, BEFORE any decision
+#                `skills/cto/SKILL.md` Phases 2 / 5 / 11 ("Check escalation-thresholds.yaml. Decide.")
+# WRITES TO:     `.cofoundy/state/escalation-queue.jsonl` (one JSON record per line; schema at
+#                `${CLAUDE_PLUGIN_ROOT}/references/escalation-queue.schema.json`)
+#
+# ─────────────────────────────────────────────────────────────────────────────────
+# FAIL-CLOSED CONTRACT — read before editing, and before deciding anything (F6)
+# ─────────────────────────────────────────────────────────────────────────────────
+# A governance gate that cannot read its config MUST HALT. It must never fall through
+# to allow.
+#
+#   • This file ABSENT                     → ceo-agent does NOT decide.
+#   • A `required_keys` entry MISSING      → ceo-agent does NOT decide.
+#   • A threshold present but UNPARSEABLE  → ceo-agent does NOT decide.
+#
+# In every one of those cases ceo-agent returns
+#   {result: escalate, reason: "escalation-thresholds.yaml: <absent | missing key: X>"}
+# appends the escalation record to `.cofoundy/state/escalation-queue.jsonl`, and STOPS.
+#
+# This inverts the hook convention on purpose. A PreToolUse hook fails OPEN because it
+# must not deadlock the session. A governance gate fails CLOSED because a missing
+# threshold is an UNANSWERED QUESTION, not a granted permission. Reading "required
+# input absent" as `allow` is exactly the root cause behind F1/F2/F5/F6 — do not
+# reintroduce it here.
+#
+# Silence is not consent. If you cannot read the rule, you do not have the authority.
+# ─────────────────────────────────────────────────────────────────────────────────
+
+version: 1
+
+# Keys ceo-agent asserts before deciding. Any one missing ⇒ halt + escalate (see contract above).
+required_keys:
+  - thresholds.production_main_deploy
+  - thresholds.budget_overrun
+  - thresholds.scope_expansion_request
+  - thresholds.security_finding_high
+  - autonomy_overrides
+  - blast_radius_thresholds
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Thresholds
+# ─────────────────────────────────────────────────────────────────────────────────
+# Each entry is a named condition that forces escalation when it applies to a decision.
+# ceo-agent evaluates these FIRST and stops at the first match — no decision is made.
+#
+# `escalate: true` is the flag ceo-agent keys on (per its authority boundary: "Anything
+# flagged `escalate: true` in escalation-thresholds.yaml" ALWAYS escalates).
+# The matched key is written verbatim into the escalation record's `threshold_tripped`.
+thresholds:
+
+  production_main_deploy:
+    escalate: true
+    severity: blocking
+    description: "Any deploy whose target is `main` / production (a live, user-facing surface)."
+    applies_to_phases: [11]
+    detect: >-
+      The Phase 11 gate context names target=main, OR the deploy would publish to a
+      production domain / production Railway service.
+    override: autonomy_overrides.auto_approve_main_deploy
+    suggested_default: >-
+      Hold the deploy. Feature-branch deploys fire under ceo-agent authority; main does not.
+    question_for_human: "Deploy <branch> to production main? Feature-branch deploy is already green."
+
+  budget_overrun:
+    escalate: true
+    severity: blocking
+    description: "The cycle exceeds its declared budget of money or agent-hours."
+    applies_to_phases: [2, 5, 11]
+    detect: >-
+      Projected spend exceeds `limits.*` below, OR the brief declares a budget and the
+      task graph's estimate exceeds it. If no budget is declared anywhere, this threshold
+      does not apply — that is NOT the same as a missing key (see fail-closed contract).
+    limits:
+      usd_per_cycle: 50           # third-party spend (API credits, infra, tooling) per /cto cycle
+      agent_hours_per_cycle: 24   # cumulative wall-clock across all dispatched lanes
+    suggested_default: "Pause dispatch. Re-scope to the brief's mvp_scope and re-gate."
+    question_for_human: "Cycle is projected at <X> vs a <Y> budget. Raise the budget, or cut scope to <Z>?"
+
+  scope_expansion_request:
+    escalate: true
+    severity: blocking
+    description: >-
+      Work outside the brief's `mvp_scope`, or a task/lane asking to write outside its
+      `scope.write` — including a `cluster_scope_violation` the matrix cannot resolve.
+    applies_to_phases: [5, 7, 8]
+    detect: >-
+      A proposed task, amendment, or worker escalation names a deliverable absent from
+      `brief.yaml:mvp_scope`, or names a path owned by another role's W-cell in
+      `file-ownership-matrix.md`.
+    exempt: >-
+      Reassignment to the owning lane, or carving the matrix, resolves this WITHOUT
+      escalation — those are ceo-agent's own authority. Escalate only when neither is
+      available (e.g. the owning lane has terminated and the change alters mvp_scope).
+    suggested_default: "Reject the expansion. File it as a follow-up task for the next cycle."
+    question_for_human: "<role> needs <path/deliverable>, outside mvp_scope. Expand scope, or defer to next cycle?"
+
+  security_finding_high:
+    escalate: true
+    severity: blocking
+    description: >-
+      A HIGH/CRITICAL security finding — secret exposure, authn/authz bypass, injection,
+      a vulnerable dependency with a known advisory, or PII on an unintended surface.
+    applies_to_phases: [8, 11]
+    detect: >-
+      `cso-audit` returns HIGH or CRITICAL, `preflight-audit` flags a 3p advisory, OR
+      research-agent's Phase-11 dep-advisory check returns a live CVE.
+    suggested_default: "Block the merge/deploy. Do not ship a known-HIGH finding on ceo-agent authority."
+    question_for_human: "<finding> is HIGH. Block the release, or accept the risk with <mitigation>?"
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Always-escalate surfaces (ceo-agent's authority boundary, restated as config)
+# ─────────────────────────────────────────────────────────────────────────────────
+# These are NOT overridable by `autonomy_overrides`. They mirror ceo-agent's
+# "You DO NOT have authority on" list so the boundary is queryable, not just prose.
+always_escalate:
+  - legal_instruments          # delegate via escalation to `cofoundy-founders:legal-team`
+  - payments_sunat_ruc         # any tributario / accounting surface
+  - hiring_firing_compensation
+  - external_client_comms      # client/lead-facing sends
+  - credential_mint_or_rotate  # new secrets, key rotation, vault writes
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Autonomy overrides
+# ─────────────────────────────────────────────────────────────────────────────────
+# The ONLY way to relax a threshold. An operator sets these deliberately, per project.
+# They cannot relax anything in `always_escalate`.
+# Every default here is the SAFE value — flipping one is an explicit act with an owner.
+autonomy_overrides:
+  auto_approve_main_deploy: false   # /cto Phase 11 checks this exact path before escalating
+  auto_approve_budget_overrun: false
+  auto_approve_scope_expansion: false
+  auto_approve_security_finding_high: false
+
+  # Provenance for any flip above — who authorized it, when, and for how long.
+  # An override with no `authorized_by` is treated as ABSENT (i.e. the threshold still fires).
+  authorized_by: null               # e.g. "Andre Pacheco (CEO)"
+  authorized_at: null               # ISO-8601
+  expires_at: null                  # ISO-8601 — null means "this cycle only"; a past date means expired
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Blast-radius refute-pass (F1c — issue #14)
+# ─────────────────────────────────────────────────────────────────────────────────
+# A ceo-agent `approve` at a hard gate (Phase 2/5/11) is today a SINGLE point of
+# judgment. For HIGH-blast-radius approves only, /cto runs a second, adversarial
+# opinion — a refuter subagent prompted to REFUTE the approve — BEFORE the approved
+# action executes. This is NOT a panel on every decision (cost/latency) and NOT a
+# unilateral veto: disagreement between the gate and the refuter ESCALATES to the
+# human, it does not block on the refuter's say-so.
+#
+# Read by:  skills/cto/SKILL.md §"Refute-pass" (after each gate's `approve` branch)
+# Checked:  skills/cto/scripts/blast_radius_check.py  (deterministic trigger predicate)
+# Recorded: skills/cto/scripts/record_refute.py       (annotate decision file + escalate on REFUTE)
+#
+# A trigger matches when its condition is met AND its flag is true. If NONE match,
+# `below_threshold` holds → current behavior, zero extra cost. Fail-closed (F6): if
+# this block is absent/unparseable, blast_radius_check.py REQUIRES the refute — a
+# missing rule is more scrutiny, never a silent pass.
+blast_radius_thresholds:
+  triggers:
+    deploy_any: true                  # any deploy at all (the Phase 11 surface)
+    architecture_external_surface: true  # an arch change that exposes an external surface
+    task_graph_repos_gt: 1            # a task graph touching more than N repos
+    files_touched_gt: 25             # a change larger than N files
+  below_threshold: no_refute          # explicit: below threshold = current behavior, no extra cost
+  disagreement: escalate              # gate↔refuter disagreement ⇒ escalate to human, never unilateral veto
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Project-specific thresholds
+# ─────────────────────────────────────────────────────────────────────────────────
+# Add domain thresholds here at scaffold time from `brief.yaml` constraints — e.g. a
+# deal touching a signed SOW, a campaign spending ad budget, a repo with a compliance
+# surface. Same shape as `thresholds` above; same `escalate: true` flag.
+project_thresholds: {}

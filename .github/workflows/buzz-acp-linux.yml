@@ -21,6 +21,7 @@ on:
       - "crates/buzz-acp/**"
       - "crates/buzz-sdk/**"
       - "crates/buzz-ws-client/**"
+      - "crates/git-credential-nostr/**"
       - "rust-toolchain.toml"
       - ".github/workflows/buzz-acp-linux.yml"
 
@@ -48,17 +49,28 @@ jobs:
           key: buzz-acp-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: buzz-acp-${{ runner.os }}-
 
-      # Both binaries ship together on purpose: the harness's base prompt tells
-      # the agent "the buzz CLI is your primary interface", so a host with
-      # buzz-acp but no buzz CLI runs turns that silently produce no reply.
+      # All three binaries ship together on purpose:
+      #   - buzz-acp  the harness itself
+      #   - buzz      the harness's base prompt tells the agent "the buzz CLI is
+      #               your primary interface", so a host with buzz-acp but no
+      #               buzz CLI runs turns that silently produce no reply.
+      #   - git-credential-nostr  without it `git push` to the Buzz git server on
+      #               a clean box dies with "could not read Username for ...":
+      #               the NIP-98 helper simply is not on PATH. See
+      #               deploy/arch-box/README.md for the two config requirements.
       - name: Build
-        run: cargo build --release -p buzz-acp -p buzz-cli
+        run: cargo build --release -p buzz-acp -p buzz-cli -p git-credential-nostr
 
       # Fail loudly here rather than shipping a binary that cannot start.
+      # Note: git-credential-nostr takes a git credential operation (get/store/
+      # erase), not flags — `--help` lands in its unknown-arg branch and exits 0
+      # without output. That is still the signal this step wants: the binary
+      # loads, links, and runs. Passing `get` instead would block on stdin.
       - name: Smoke check
         run: |
           ./target/release/buzz-acp --help > /dev/null
           ./target/release/buzz --help > /dev/null
+          ./target/release/git-credential-nostr --help > /dev/null
           echo "binaries ok"
 
       - name: Publish release asset
@@ -70,16 +82,21 @@ jobs:
           TAG="buzz-acp-linux-${SHORT_SHA}"
           cp target/release/buzz-acp "buzz-acp-x86_64-linux"
           cp target/release/buzz "buzz-x86_64-linux"
-          sha256sum "buzz-acp-x86_64-linux" "buzz-x86_64-linux" > "buzz-acp-x86_64-linux.sha256"
+          cp target/release/git-credential-nostr "git-credential-nostr-x86_64-linux"
+          sha256sum \
+            "buzz-acp-x86_64-linux" "buzz-x86_64-linux" "git-credential-nostr-x86_64-linux" \
+            > "buzz-acp-x86_64-linux.sha256"
           # Idempotent: re-running the workflow on the same commit replaces the
           # assets instead of erroring on an existing tag.
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" \
-              "buzz-acp-x86_64-linux" "buzz-x86_64-linux" "buzz-acp-x86_64-linux.sha256" \
+              "buzz-acp-x86_64-linux" "buzz-x86_64-linux" \
+              "git-credential-nostr-x86_64-linux" "buzz-acp-x86_64-linux.sha256" \
               --repo "$GITHUB_REPOSITORY" --clobber
           else
             gh release create "$TAG" \
-              "buzz-acp-x86_64-linux" "buzz-x86_64-linux" "buzz-acp-x86_64-linux.sha256" \
+              "buzz-acp-x86_64-linux" "buzz-x86_64-linux" \
+              "git-credential-nostr-x86_64-linux" "buzz-acp-x86_64-linux.sha256" \
               --repo "$GITHUB_REPOSITORY" \
               --title "buzz-acp linux x86_64 @ ${SHORT_SHA}" \
               --notes "Built from ${GITHUB_SHA} by ${GITHUB_WORKFLOW}. Consumed by deploy/arch-box/install-buzz-acp.sh."

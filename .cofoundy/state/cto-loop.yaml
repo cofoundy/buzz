@@ -1,0 +1,21 @@
+schema_version: 1.0
+cycle: relay-upgrade
+last_phase: 11
+last_phase_at: 2026-08-25T22:30:00-05:00
+project_root: /Users/styreep/cofoundy/products/buzz-cto-relay-upgrade
+worker_id: cto-e3e022
+branch: cto/relay-upgrade-rebase
+upstream_base: 52621c09bea503f4d5860030dfabfaf9ade71bfa
+pr: https://github.com/cofoundy/buzz/pull/5
+superseded_pr: https://github.com/cofoundy/buzz/pull/4
+verified:
+  - "cargo check -p buzz-relay -> Finished, sin errores"
+  - "7/7 archivos exclusivos del fork presentes tras el rebase"
+  - "6/6 migraciones presentes; 0 destructivas de filas"
+  - "remote HEAD == local HEAD (c28ac821)"
+unverified:
+  - "CI de GitHub: en vuelo al cierre (monitor armado). El PR #4 no dio senal alguna."
+  - "docker build del deploy/railway/Dockerfile: NO ejecutado localmente"
+  - "migraciones contra una DB real: NO ejecutadas"
+gates_pending:
+  - phase_11_deploy_approval: E-001 (backup del Postgres)
